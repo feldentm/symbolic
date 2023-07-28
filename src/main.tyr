@@ -1,0 +1,69 @@
+with feldentm.thyGL.gl;
+with SDL := feldentm.thySDL;
+
+/**
+ * Implement an entry point that will start a game
+ */
+type Main {
+  type var frame = 1i8;
+
+  type var noRed = false;
+  type var noBlue = false;
+
+  type var blueX = 0.6f;
+  type var blueY = -0.5f;
+
+  type var mouseSpeed = 0.01f;
+
+  type def update {
+    ++frame
+
+    //Clears the screen
+    gl.clear(gl.COLOR_BUFFER_BIT);
+
+    //Creating a triangle
+    gl.begin( gl.POLYGON );
+
+    gl.color( if noRed 0.0f else 1.0f, 0.0f, 0.0f );
+    gl.vertex( -0.6f, -0.5f, -0.75f ); 
+
+    gl.color(frame, 255i8 - frame, frame);
+    gl.vertex(  0.0, 0.5, -0.75 );
+
+    gl.color( 0.0f, 0.0f, 1.0f);
+    gl.vertex(blueX, blueY, -0.75f); 
+    gl.end();
+    gl.flush();
+  }
+
+  type def handleEvent(e : CRef[SDL.Event]) : void = switch e {
+    if KEYDOWN {
+      switch e.keysym.sym {
+        if RETURN { noRed = true }
+        if BACKSPACE { noRed = false }
+
+        else {
+          tyr.io.System.out.put(e.keysym.scancode)          
+        }
+      }
+    }
+
+    if MOUSEMOTION {
+      if (0 > e.xrel) blueX -= e.xrel.toFloat[32]() / 100f * mouseSpeed
+      if (0 < e.xrel) blueX += e.xrel.toFloat[32]() / 100f * mouseSpeed
+      if (0 > e.yrel) blueY += mouseSpeed
+      if (0 < e.yrel) blueY -= mouseSpeed
+    }
+
+    if MOUSEWHEEL {
+      "scroll\n"!!;
+      if (0 > e.y) {mouseSpeed -= .001f; "dec\n"!!}
+      if (0 < e.y) {mouseSpeed += .001f; "inc\n"!!}
+      tyr.io.System.out.flush()
+    }
+
+    else {}
+  }
+
+  type def main : void <: entryPoint = new Window(handleEvent, update)
+}

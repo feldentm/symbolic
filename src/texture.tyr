@@ -1,0 +1,39 @@
+with container.index_t
+
+with feldentm.thyGL.gl;
+with feldentm.thyGL.texture;
+
+/**
+ * Wrap a data source and provide a texture that is loaded on first use.
+ */
+public class Texture <: abstract {
+
+  var loaded : bool
+  var data : texture;
+
+  new {
+    loaded = false
+  }
+
+  /**
+   * Load the texture
+   */
+  protected def load() : void;
+
+  /**
+   * Ensure that a texture is loaded.
+   */
+  public type def ensure(this : Texture) : void {
+    if (!loaded) {
+      load()
+    }
+  }
+
+  /**
+   * Bind the texture.
+   */
+  public type def bind(this : Texture, channel : index_t = 0) : void {
+    ensure()
+    data.bind(channel)
+  }
+}

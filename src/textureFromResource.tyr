@@ -1,0 +1,24 @@
+with container.index_t
+
+with feldentm.thyGL.gl;
+with feldentm.thyGL.texture;
+
+/**
+ * A texture that is loaded from a resource.
+ */
+public class TextureFromResource <: Texture {
+  private val from : mem.Resource
+  private val width : index_t
+  private val height : index_t
+
+  public new (from := from : mem.Resource,
+    width := width : index_t, width := height : index_t
+  ) {
+    Texture.new()
+  }
+
+  override
+  def load() : void {
+    data = new texture(from.view(), width, height)
+  }
+}

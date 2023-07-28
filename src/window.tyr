@@ -1,0 +1,95 @@
+with feldentm.thyGL.gl;
+with feldentm.thyGL.glew;
+with SDL := feldentm.thySDL;
+with sdl_gl := SDL.gl;
+with SDL.sdl;
+with sdl_win := SDL.Window;
+
+public type Window {
+  public val window : sdl_win
+
+  //! create a new Window that manages itself
+  public new (
+    eventHandler : def (CRef[SDL.Event]) : void,
+    draw : def () : void,
+    title : String = "DTF Symbolic Main Window"
+  ) {
+    // SDL2 initialization and error check 
+    if (sdl.init(sdl.INIT_VIDEO) != 0) {
+      "Unable to initialize SDL: "!!;
+      sdl.getError().print();
+      sdl.clearError();
+    }
+
+    sdl_gl.setAttribute(sdl_gl.RED_SIZE, 8);
+    sdl_gl.setAttribute(sdl_gl.GREEN_SIZE, 8);
+    sdl_gl.setAttribute(sdl_gl.BLUE_SIZE, 8);
+    sdl_gl.setAttribute(sdl_gl.DEPTH_SIZE, 24);
+    sdl_gl.setAttribute(sdl_gl.DOUBLEBUFFER, 1);
+    sdl_gl.setAttribute(sdl_gl.CONTEXT_PROFILE_MASK,
+                        sdl_gl.CONTEXT_PROFILE_COMPATIBILITY );
+
+    // Create SDL window
+    var cTitle = new tyr.io.CString(title);
+    window = sdl_win.create(cTitle,
+                            100, 100,
+                            800, 600,
+                            sdl_win.OPENGL|sdl_win.RESIZABLE );
+    delete cTitle;
+
+    // Error checking window
+    if (null == window) {
+      sdl.getError().print();
+      sdl.clearError();
+
+      delete this;
+      return;
+    }
+
+    // Creates OpenGL context
+    val context = sdl_gl.createContext(window);
+    if (null == context) {
+      sdl.getError().print();
+      sdl.clearError();
+
+      window.destroy()
+      delete this;
+      return;
+    }
+
+    // Makes the open window the current context
+    sdl_gl.makeCurrent(window, context);
+
+    // initialization of glew
+    val status = glew.init();
+    if (glew.OK != status){
+      glew.getErrorString(status).print();
+
+      window.destroy()
+      delete this;
+      return;
+    }
+
+    // run game loop
+    while (true) {
+      {
+        var e : SDL.Event;
+        while (0 != sdl.pollEvent(e)) {
+          switch e {
+            if QUIT {
+              delete this
+              return
+            }
+            else eventHandler(e)
+          }
+        }
+      }
+
+      draw();
+      sdl_gl.swapWindow(window);
+    }
+  }
+
+  private delete {
+  }
+}
