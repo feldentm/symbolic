@@ -1,0 +1,89 @@
+/**
+ * Basic Quaternion implementation with the purpose of representing 3d rotation.
+ *
+ * @note the implementation tries to use allways a w>=0 as this does not change
+ *   anything for the user but makes some operations much simpler.
+ *
+ * @author Timm Felden
+ */
+public class Quaternion {
+  var w : float
+  var x : float
+  var y : float
+  var z : float
+
+  /** creates an "1" Quaternion */
+  public new {
+    w = 1f
+    x = y = z = 0f
+  }
+
+  /** creates a unit quaternion out of supplied wxyz */
+  public new (w : float, x : float, y : float, z : float) {
+    val sign = if (w > 0f) 1.0f else -1.0f
+	  val len = sign / (w*w + x*x + y*y + z*z).sqrt()
+    this.w = w * len
+    this.x = x * len
+    this.y = y * len
+    this.z = z * len
+  }
+
+  /** creates a unit quaternion that rotates by alpha around v */
+  public new (alpha : float, v : CRef[Vector]) {
+    var axis = new Vector(v)
+    axis.normalize()
+
+    val theta = alpha * .5f
+
+    w = theta.cos()
+
+    val sign = if (w > 0f) 1.0f else -1.0f
+	  w *= sign
+
+    val sinTheta = sign*theta.sin()
+
+    x = axis.x * sinTheta
+    y = axis.y * sinTheta
+    z = axis.z * sinTheta
+  }
+
+  /** multiplication is, as for matrices, concatenation of rotations */
+  public def * (other : Quaternion) : Quaternion
+         <: reflection.native, operator.precedence[120] = new Quaternion(
+    w*other.w - x*other.x - y*other.y - z*other.z,
+    w*other.x + x*other.w + z*other.y - y*other.z,
+    w*other.y + y*other.w + x*other.z - z*other.x,
+    w*other.z + z*other.w + y*other.x - x*other.y
+  )
+
+  /** calculates the virtual amount of rotation around the rotation axis */
+  public def getRotationAngle = 2f * w.acos()
+
+  public def getRotationAxis : Vector {
+    // Compute sin^2(theta/2).  Remember that w = cos(theta/2),
+    // and sin^2(x) + cos^2(x) = 1
+    val sinThetaOver2Sq = 1f - w*w
+
+    if (sinThetaOver2Sq <= 0f) {
+      // Identity quaternion, or numerical imprecision. Just
+	    // return any valid vector, since it doesn't matter
+      return new Vector(1f, 0f, 0f)
+    }
+
+    val oneOverSinThetaOver2 = 1f / sinThetaOver2Sq.sqrt()
+
+    return new Vector(
+      x * oneOverSinThetaOver2,
+      y * oneOverSinThetaOver2,
+      z * oneOverSinThetaOver2
+    )
+  }
+
+  /**
+   * this will create an isomorph matrix out of this quaternion
+   */
+  public def toMatrix : Matrix {
+    val v = getRotationAxis()
+    Matrix.createRotationMatrix(getRotationAngle(), v)
+  }
+}

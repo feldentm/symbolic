@@ -1,5 +1,6 @@
 src=src
 name=feldentm.symbolic
 
+with tyr.container
 with tyr.io
 with feldentm.thySDL

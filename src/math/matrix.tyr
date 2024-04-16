@@ -1,0 +1,188 @@
+with tyr.container.FlatSizedArray2
+with tyr.lang.container.range
+
+/**
+ * Matrix is used to transform and translate 3D Vectors. The matrix has 4x3
+ *  storage but acts like a 4x4 matrix.
+ */
+public type Matrix {
+  /**
+   * We have an implicit 4x4 matrix which is defined as:
+   * a11 a12 a13 0
+   * a21 a22 a23 0
+   * a31 a32 a33 0
+   * a41 a42 a43 1
+   */
+  var a : FlatSizedArray2[float, 4U, 3U]
+
+  /**
+   * create a unit matrix
+   */
+  public new {
+    a.type.foreachIndex i, j do {
+      a(i,j) = (if (i==j) 1f else 0f)
+    }
+  }
+
+  /**
+   * copy from
+   */
+  public new (from : CRef[Matrix]) {
+    a.type.foreachIndex i, j do {
+      a(i,j) = from.a(i,j)
+    }
+  }
+
+  /**
+   * create from values
+   */
+  public new (a11 : float, a12 : float, a13 : float,
+              a21 : float, a22 : float, a23 : float,
+              a31 : float, a32 : float, a33 : float,
+              a41 : float, a42 : float, a43 : float) {
+
+    a(0,0) = a11; a(0,1) = a12; a(0,2) = a13;
+    a(1,0) = a21; a(1,1) = a22; a(1,2) = a23;
+    a(2,0) = a31; a(2,1) = a32; a(2,2) = a33;
+    a(3,0) = a41; a(3,1) = a42; a(3,2) = a43;
+  }
+
+  // we do not require a delete as it would be a nop anyway
+
+  /**
+   * creates a Matrix which scales by factors x y z
+   */
+  public type def createScaleMatrix (x : float, y : float, z : float) : Matrix
+    = new Matrix(x, 0f, 0f,
+                 0f, y, 0f,
+                 0f, 0f, z,
+                 0f, 0f, 0f)
+
+  /**
+   * creates a Matrix which translates by x, y, z
+   */
+  public
+  type def createTranslationMatrix (x : float, y : float, z : float) : Matrix
+    = new Matrix(1f, 0f, 0f,
+                 0f, 1f, 0f,
+                 0f, 0f, 1f,
+                 x, y, z)
+
+  /**
+   * creates a Matrix which rotates around x, y, z by the angle a
+   *
+   * @pre  1 = x*x + y*y + z*z
+   */
+  public
+  type def createRotationMatrix (a : float, x : float, y : float, z : float)
+    : Matrix {
+
+    val ca = a.cos()
+    val sa = a.sin(a)
+    val mca = 1f - ca
+
+    return new Matrix(
+      x*x*mca +   ca,  x*y*mca - z*sa, x*z*mca + y*sa,
+      x*y*mca + z*sa,  y*y*mca +   ca, y*z*mca - x*sa,
+      x*z*mca - y*sa,  y*z*mca + x*sa, z*z*mca +   ca,
+      0f, 0f, 0f
+    )
+  }
+
+  /**
+   * creates a Matrix which rotates around v by the angle a
+   *
+   * @pre  1 == v*v
+   */
+  public type def createRotationMatrix (a : float, v : CRef[Vector]) : Matrix
+    = createRotationMatrix(a , v.x, v.y, v.z);
+
+  public def * (this : CRef[Matrix], m : CRef[Matrix]) : Matrix
+    = new Matrix(
+      a(0,0)*m.a(0,0) + a(0,1)*m.a(1,0) + a(0,2)*m.a(2,0), //a11
+      a(0,0)*m.a(0,1) + a(0,1)*m.a(1,1) + a(0,2)*m.a(2,1), //a12
+      a(0,0)*m.a(0,2) + a(0,1)*m.a(1,2) + a(0,2)*m.a(2,2), //a13
+
+      a(1,0)*m.a(0,0) + a(1,1)*m.a(1,0) + a(1,2)*m.a(2,0), //a21
+      a(1,0)*m.a(0,1) + a(1,1)*m.a(1,1) + a(1,2)*m.a(2,1), //a22
+      a(1,0)*m.a(0,2) + a(1,1)*m.a(1,2) + a(1,2)*m.a(2,2), //a23
+
+      a(2,0)*m.a(0,0) + a(2,1)*m.a(1,0) + a(2,2)*m.a(2,0), //a31
+      a(2,0)*m.a(0,1) + a(2,1)*m.a(1,1) + a(2,2)*m.a(2,1), //a32
+      a(2,0)*m.a(0,2) + a(2,1)*m.a(1,2) + a(2,2)*m.a(2,2), //a33
+
+      a(3,0)*m.a(0,0) + a(3,1)*m.a(1,0) + a(3,2)*m.a(2,0) + m.a(3,0), //a41
+      a(3,0)*m.a(0,1) + a(3,1)*m.a(1,1) + a(3,2)*m.a(2,1) + m.a(3,1), //a42
+      a(3,0)*m.a(0,2) + a(3,1)*m.a(1,2) + a(3,2)*m.a(2,2) + m.a(3,2)  //a43
+    )
+
+  public def *= (this : Ref[Matrix], m : CRef[Matrix]) : Ref[Matrix] {
+    val tmp = this * m
+    `new`(this, tmp)
+    this
+  }
+
+  /**
+   * does a multiplication without the translation part, i.e. as if it were a
+   * 3x3 matrix
+   */
+  public
+  def multiplyWithoutTranslation (this : CRef[Matrix], v : CRef[Vector])
+    : Vector = new Vector(
+      v.x * a(0,0) + v.y * a(1,0) + v.z * a(2,0),
+      v.x * a(0,1) + v.y * a(1,1) + v.z * a(2,1),
+      v.x * a(0,2) + v.y * a(1,2) + v.z * a(2,2)
+    )
+
+  /**
+   * swap the matrix along the diag part
+   *
+   * @note  this will negate the translation part of the matrix
+   */
+  public def transpose (this : CRef[Matrix])
+    = new Matrix(
+      a(0,0), a(1,0), a(2,0),
+      a(0,1), a(1,1), a(2,1),
+      a(0,2), a(1,2), a(2,2),
+      -a(3,0), -a(3,1), -a(3,2)
+  )
+
+  public def determinant (this : CRef[Matrix])
+    = ( a(0,0) * (a(1,1)*a(2,2) - a(1,2)*a(2,1))
+      + a(0,1) * (a(1,2)*a(2,0) - a(1,0)*a(2,2))
+      + a(0,2) * (a(1,0)*a(2,1) - a(1,1)*a(2,0)))
+
+  /**
+   * calculates the inverse matrix \return 0 if matrix is considered singular
+   */
+  public def inverse(this : CRef[Matrix]) : Matrix {
+    val det = determinant()
+
+    // too low determinants will not result in a meaningless inverse matrix
+    if(det.abs() < 1e-10f)
+      return new Matrix(0f,0f,0f,0f,0f,0f,0f,0f,0f,0f,0f,0f)
+
+    val oneOverDet = 1f / det;
+
+    var rval = new Matrix
+
+    rval.a(0,0) = (a(1,1)*a(2,2) - a(1,2)*a(2,1)) * oneOverDet;
+    rval.a(0,1) = (a(0,2)*a(2,1) - a(0,1)*a(2,2)) * oneOverDet;
+    rval.a(0,2) = (a(0,1)*a(1,2) - a(0,2)*a(1,1)) * oneOverDet;
+
+    rval.a(1,0) = (a(1,2)*a(2,0) - a(1,0)*a(2,2)) * oneOverDet;
+    rval.a(1,1) = (a(0,0)*a(2,2) - a(0,2)*a(2,0)) * oneOverDet;
+    rval.a(1,2) = (a(0,2)*a(1,0) - a(0,0)*a(1,2)) * oneOverDet;
+
+    rval.a(2,0) = (a(1,0)*a(2,1) - a(1,1)*a(2,0)) * oneOverDet;
+    rval.a(2,1) = (a(0,1)*a(2,0) - a(0,0)*a(2,1)) * oneOverDet;
+    rval.a(2,2) = (a(0,0)*a(1,1) - a(0,1)*a(1,0)) * oneOverDet;
+
+    // translation is somewhat special
+    rval.a(3,0) = -(a(3,0)*rval.a(0,0) + a(3,1)*rval.a(1,0) + a(3,2)*rval.a(2,0));
+    rval.a(3,1) = -(a(3,0)*rval.a(0,1) + a(3,1)*rval.a(1,1) + a(3,2)*rval.a(2,1));
+    rval.a(3,2) = -(a(3,0)*rval.a(0,2) + a(3,1)*rval.a(1,2) + a(3,2)*rval.a(2,2));
+
+    return rval;
+  }
+}
